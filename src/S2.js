@@ -13,7 +13,7 @@ const S2 = {
 S2.S2 = class {
     constructor(canvasEl) {
         if (S2._instance) {
-            throw new Error("S2.S2 can only be initialized one time.");
+            throw new Error("S2.S2 can only be initialized one time. If you want to change the canvas, use S2.instance.attachToCanvas(canvasEl) instead.");
         }
         if (!(canvasEl instanceof HTMLCanvasElement)) {
             throw new Error("S2.S2: canvasEl must be an instance of HTMLCanvasElement.");
@@ -144,13 +144,13 @@ S2.S2 = class {
 }
 
 S2.Entity = class {
-    constructor(x, y, sprite) {
+    constructor(x, y, renderer) {
         this._transform = new S2.Transform();
         this._transform.position.x = x || 0;
         this._transform.position.y = y || 0;
-        this._sprite = sprite || null;
-        if (this._sprite && !(this._sprite instanceof S2.Sprite)) {
-            throw new Error("S2.Entity sprite parameter not an instance of S2.Sprite class.");
+        this._renderer = renderer || null;
+        if (this._renderer && !(this._renderer instanceof S2.Renderer)) {
+            throw new Error("S2.Entity renderer parameter must be an instance of S2.Renderer class.");
         }
     }
 
@@ -165,27 +165,30 @@ S2.Entity = class {
         this._transform = value;
     }
 
-    get sprite() {
-        return this._sprite;
+    get renderer() {
+        return this._renderer;
     }
 
-    set sprite(value) {
-        if (!(value instanceof S2.Sprite)) {
-            throw new Error("S2.Entity.sprite new value must be an instance of S2.Sprite class.");
+    set renderer(value) {
+        if (!(value instanceof S2.Renderer)) {
+            throw new Error("S2.Entity.renderer new value must be an instance of S2.Renderer class.");
         }
-        this._sprite = value;
+        this._renderer = value;
     }
 
     update() { } // Can be overloaded.
 
     _animationFrame() {
         this._transform.begin();
-        if (this._sprite && this._sprite.loaded) {
-            this.sprite.draw();
-            //S2.instance.context.drawImage(this._sprite.image, 0, 0);
+        if (this._renderer) {
+            this._renderer.draw();
         }
         this._transform.end();
     }
+}
+
+S2.Renderer = class {
+    draw() { } // To be overloaded
 }
 
 S2.Transform = class {
@@ -241,6 +244,33 @@ S2.Vector = class {
     }
 }
 
+S2.SpriteRenderer = class extends S2.Renderer {
+    constructor(sprite) {
+        super();
+        if (!(sprite instanceof S2.Sprite)) {
+            throw new Error("S2.SpriteRenderer sprite paramenter must be an instance of S2.Sprite.");
+        }
+        this._sprite = sprite;
+    }
+
+    get sprite() {
+        return this._sprite;
+    }
+
+    set sprite(value) {
+        if (!(value instanceof S2.Sprite)) {
+            throw new Error("S2.SpriteRenderer.sprite value must be an instance of S2.Sprite.");
+        }
+        this._sprite = value;
+    }
+
+    draw() {
+        if (this._sprite.loaded) {
+            S2.instance.context.drawImage(this._sprite.image, 0, 0);
+        }
+    }
+}
+
 S2.Sprite = class {
     constructor(src) {
         this._src = src;
@@ -277,9 +307,4 @@ S2.Sprite = class {
         return this._isLoaded;
     }
 
-    draw(x, y) {
-        x = x || 0;
-        y = y || 0;
-        S2.instance.context.drawImage(this._img, x, y);
-    }
 }

@@ -6,7 +6,7 @@ class Narwhal extends S2.Entity {
         super(x, y);
         this.narwhalImage = new S2.Sprite("images/narwhal.png");
         this.narwhalImageInverted = new S2.Sprite("images/narwhal_inverted.png");
-        this.sprite = this.narwhalImage;
+        this.renderer = new S2.SpriteRenderer(this.narwhalImage);
         this.velocity = 6;
         this.vector = new S2.Vector(this.velocity, this.velocity);
     }
@@ -14,16 +14,16 @@ class Narwhal extends S2.Entity {
     update() {
         if (this.transform.position.x < 0) {
             this.vector.x = this.velocity;
-            this.sprite = this.narwhalImage;
+            this.renderer.sprite = this.narwhalImage;
         }
-        if (this.transform.position.x + this.sprite.width > s2.width) {
+        if (this.transform.position.x + this.renderer.sprite.width > s2.width) {
             this.vector.x = -this.velocity;
-            this.sprite = this.narwhalImageInverted;
+            this.renderer.sprite = this.narwhalImageInverted;
         }
         if (this.transform.position.y < 0) {
             this.vector.y = this.velocity;
         }
-        if (this.transform.position.y + this.sprite.height > s2.height) {
+        if (this.transform.position.y + this.renderer.sprite.height > s2.height) {
             this.vector.y = -this.velocity;
         }
         this.transform.position.add(this.vector);
