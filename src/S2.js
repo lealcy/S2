@@ -231,7 +231,6 @@ S2.Sprite = class {
         this._img = new Image();
         this._isLoaded = false;
         this._img.onload = e => {
-            console.log("image loaded successfully");
             this._isLoaded = true;
         }
         this._img.onerror = e => {
