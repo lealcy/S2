@@ -26,6 +26,7 @@ S2.S2 = class {
         this._frameCount = 0;
         this._timestamp = 0;
         this._clearEveryFrame = true;
+        this._backgroundColor = null;
         this.attachToCanvas(canvasEl);
     }
 
@@ -63,6 +64,14 @@ S2.S2 = class {
 
     set clearEveryFrame(value) {
         this._clearEveryFrame = !!value;
+    }
+
+    get backgroundColor() {
+        return this._backgroundColor;
+    }
+
+    set backgroundColor(value) {
+        this._backgroundColor = value;
     }
 
     attachToCanvas(canvasEl) {
@@ -110,7 +119,14 @@ S2.S2 = class {
         this._timestamp = timestamp;
         this._frameCount++;
 
-        this._context.clearRect(0, 0, this._canvas.width, this._canvas.height);
+        if (!this._backgroundColor) {
+            this._context.clearRect(0, 0, this._canvas.width, this._canvas.height);
+        } else {
+            this._context.save();
+            this._context.fillStyle = this._backgroundColor;
+            this._context.fillRect(0, 0, this._canvas.width, this._canvas.height);
+            this._context.restore();
+        }
 
         this._entities.forEach(layer => {
             layer.forEach(entity => {

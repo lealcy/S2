@@ -30,6 +30,8 @@ class Narwhal extends S2.Entity {
     }
 }
 
+s2.backgroundColor = "#06d";
 s2.addEntity(new Narwhal(0, 0));
+s2.addEntity(new Narwhal(512, 512));
 
 s2.run();
