@@ -37,6 +37,14 @@ S2.S2 = class {
         return this._context;
     }
 
+    get width() {
+        return this._canvas.width;
+    }
+
+    get height() {
+        return this._canvas.height;
+    }
+
     get running() {
         return this._running;
     }
@@ -83,6 +91,7 @@ S2.S2 = class {
             this._entities[layer] = [];
         }
         this._entities[layer].push(entity);
+        return entity;
     }
 
     run() {
@@ -101,8 +110,11 @@ S2.S2 = class {
         this._timestamp = timestamp;
         this._frameCount++;
 
+        this._context.clearRect(0, 0, this._canvas.width, this._canvas.height);
+
         this._entities.forEach(layer => {
             layer.forEach(entity => {
+                entity.update();
                 entity._animationFrame();
             });
         })
@@ -122,14 +134,39 @@ S2.Entity = class {
         this._transform.position.y = y || 0;
         this._sprite = sprite || null;
         if (this._sprite && !(this._sprite instanceof S2.Sprite)) {
-            throw new Error("S2.Entity sprite parameter not an instance of S2.Sprite.");
+            throw new Error("S2.Entity sprite parameter not an instance of S2.Sprite class.");
         }
     }
+
+    get transform() {
+        return this._transform;
+    }
+
+    set transform(value) {
+        if (!(value instanceof S2.Transform)) {
+            throw new Error("S2.Entity.transform new value must be an instance of S2.Transform class.");
+        }
+        this._transform = value;
+    }
+
+    get sprite() {
+        return this._sprite;
+    }
+
+    set sprite(value) {
+        if (!(value instanceof S2.Sprite)) {
+            throw new Error("S2.Entity.sprite new value must be an instance of S2.Sprite class.");
+        }
+        this._sprite = value;
+    }
+
+    update() { } // Can be overloaded.
 
     _animationFrame() {
         this._transform.begin();
         if (this._sprite && this._sprite.loaded) {
-            S2.instance.context.drawImage(this._sprite.image, 0, 0);
+            this.sprite.draw();
+            //S2.instance.context.drawImage(this._sprite.image, 0, 0);
         }
         this._transform.end();
     }
@@ -138,12 +175,14 @@ S2.Entity = class {
 S2.Transform = class {
     constructor() {
         this._position = new S2.Vector();
+        this._scale = new S2.Vector(1, 1);
     }
 
-    begin(canvasContext) {
+    begin() {
         let ctx = S2.instance.context;
         ctx.save();
         ctx.translate(this._position.x, this.position.y);
+        ctx.scale(this._scale.x, this._scale.y);
     }
 
     end() {
@@ -160,12 +199,29 @@ S2.Transform = class {
         }
         this._position = value;
     }
+
+    get scale() {
+        return this._scale;
+    }
+
+    set scale(value) {
+        if (!(value instanceof S2.Vector)) {
+            throw new Error("S2.Transform.scale must be an instance of S2.Vector.");
+        }
+        this._scale = value;
+    }
+
 }
 
 S2.Vector = class {
     constructor(x, y) {
         this.x = x || 0;
         this.y = y || 0;
+    }
+
+    add(vector) {
+        this.x += vector.x;
+        this.y += vector.y;
     }
 }
 
@@ -204,5 +260,11 @@ S2.Sprite = class {
 
     get loaded() {
         return this._isLoaded;
+    }
+
+    draw(x, y) {
+        x = x || 0;
+        y = y || 0;
+        S2.instance.context.drawImage(this._img, x, y);
     }
 }
