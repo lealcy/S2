@@ -16,17 +16,18 @@ S2.S2 = class {
             throw new Error("S2.S2 can only be initialized one time. If you want to change the canvas, use S2.instance.attachToCanvas(canvasEl) instead.");
         }
         if (!(canvasEl instanceof HTMLCanvasElement)) {
-            throw new Error("S2.S2: canvasEl must be an instance of HTMLCanvasElement.");
+            throw new Error("S2.S2.contructor canvasEl parameter must be an instance of HTMLCanvasElement.");
         }
         S2._instance = this;
         this._canvas = null;
         this._context = null;
-        this._entities = [];
         this._running = false;
         this._frameCount = 0;
         this._timestamp = 0;
         this._clearEveryFrame = true;
         this._backgroundColor = null;
+        this._input = null;
+        this._scene = new S2.Entity(0, 0);
         this.attachToCanvas(canvasEl);
     }
 
@@ -74,33 +75,32 @@ S2.S2 = class {
         this._backgroundColor = value;
     }
 
+    get input() {
+        return this._input;
+    }
+
+    get scene() {
+        return this._scene;
+    }
+
+    set scene(value) {
+        if (!(entity instanceof S2.Entity)) {
+            throw new Error("S2.S2.scene value must be an instance of S2.Entity.");
+        }
+    }
+
     attachToCanvas(canvasEl) {
         this._canvas = canvasEl;
         this._context = canvasEl.getContext("2d", { alpha: false });
         window.removeEventListener("resize", this._windowResizeListener.bind(this), false);
         window.addEventListener("resize", this._windowResizeListener.bind(this), false);
         this._windowResizeListener();
+        this._input = new S2.Input();
     }
 
     _windowResizeListener(e) {
         this._canvas.width = window.innerWidth;
         this._canvas.height = window.innerHeight;
-    }
-
-    addEntity(entity, layer) {
-        if (!(entity instanceof S2.Entity)) {
-            throw new Error("S2.addEntity first parameter must be an instance of S2.Entity");
-        }
-        if (layer === undefined) {
-            layer = 100;
-        } else if (layer < 0) {
-            layer = 0;
-        }
-        if (this._entities[layer] === undefined) {
-            this._entities[layer] = [];
-        }
-        this._entities[layer].push(entity);
-        return entity;
     }
 
     run() {
@@ -127,13 +127,9 @@ S2.S2 = class {
             this._context.fillRect(0, 0, this._canvas.width, this._canvas.height);
             this._context.restore();
         }
-
-        this._entities.forEach(layer => {
-            layer.forEach(entity => {
-                entity.update();
-                entity._animationFrame();
-            });
-        })
+        this._scene.update();
+        this._scene._animationFrame();
+        this._input._animationFrame();
 
     }
 
@@ -150,8 +146,9 @@ S2.Entity = class {
         this._transform.position.y = y || 0;
         this._renderer = renderer || null;
         if (this._renderer && !(this._renderer instanceof S2.Renderer)) {
-            throw new Error("S2.Entity renderer parameter must be an instance of S2.Renderer class.");
+            throw new Error("S2.Entity.contructor renderer parameter must be an instance of S2.Renderer class.");
         }
+        this._entities = [];
     }
 
     get transform() {
@@ -176,6 +173,22 @@ S2.Entity = class {
         this._renderer = value;
     }
 
+    addEntity(entity, layer) {
+        if (!(entity instanceof S2.Entity)) {
+            throw new Error("S2.Entity.addEntity entity parameter must be an instance of S2.Entity");
+        }
+        if (layer === undefined) {
+            layer = 100;
+        } else if (layer < 0) {
+            layer = 0;
+        }
+        if (this._entities[layer] === undefined) {
+            this._entities[layer] = [];
+        }
+        this._entities[layer].push(entity);
+        return entity;
+    }
+
     update() { } // Can be overloaded.
 
     _animationFrame() {
@@ -183,6 +196,12 @@ S2.Entity = class {
         if (this._renderer) {
             this._renderer.draw();
         }
+        this._entities.forEach(layer => {
+            layer.forEach(entity => {
+                entity.update();
+                entity._animationFrame();
+            });
+        });
         this._transform.end();
     }
 }
@@ -214,7 +233,7 @@ S2.Transform = class {
 
     set position(value) {
         if (!(value instanceof S2.Vector)) {
-            throw new Error("S2.Transform.position must be an instance of S2.Vector.");
+            throw new Error("S2.Transform.position value must be an instance of S2.Vector.");
         }
         this._position = value;
     }
@@ -225,7 +244,7 @@ S2.Transform = class {
 
     set scale(value) {
         if (!(value instanceof S2.Vector)) {
-            throw new Error("S2.Transform.scale must be an instance of S2.Vector.");
+            throw new Error("S2.Transform.scale value must be an instance of S2.Vector.");
         }
         this._scale = value;
     }
@@ -248,7 +267,7 @@ S2.SpriteRenderer = class extends S2.Renderer {
     constructor(sprite) {
         super();
         if (!(sprite instanceof S2.Sprite)) {
-            throw new Error("S2.SpriteRenderer sprite paramenter must be an instance of S2.Sprite.");
+            throw new Error("S2.SpriteRenderer.constructor sprite paramenter must be an instance of S2.Sprite.");
         }
         this._sprite = sprite;
     }
@@ -305,6 +324,56 @@ S2.Sprite = class {
 
     get loaded() {
         return this._isLoaded;
+    }
+
+}
+
+S2.Input = class {
+    constructor() {
+        this._keys = {};
+        let canvas = S2.instance.canvas;
+        canvas.tabIndex = 0;
+        canvas.focus();
+        canvas.addEventListener("keydown", this._keydownListener.bind(this), true);
+        canvas.addEventListener("keyup", this._keyupListener.bind(this), true);
+
+    }
+
+    _animationFrame() {
+        this._keys = {};
+    }
+
+    keyDown(key, altKey, ctrlKey, shiftKey, metaKey) {
+        const e = this._keys[key];
+        return e !== undefined && e.type === "keydown" && e.altKey === !!altKey
+            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey;
+    }
+
+    keyUp(key, altKey, ctrlKey, shiftKey, metaKey) {
+        const e = this._keys[key];
+        return e === undefined || (e.type === "keyup" && e.altKey === !!altKey
+            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey);
+    }
+
+    keyPressed(key, altKey, ctrlKey, shiftKey, metaKey) {
+        const e = this._keys[key];
+        return e !== undefined && e.type === "keydown" && e.repeat === false && e.altKey === !!altKey
+            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey;
+    }
+
+    keyReleased(key, altKey, ctrlKey, shiftKey, metaKey) {
+        const e = this._keys[key];
+        return e !== undefined && e.type === "keyup" && e.altKey === !!altKey
+            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey;
+    }
+
+    _keydownListener(e) {
+        //console.log(e);
+        this._keys[e.key] = e;
+    }
+
+    _keyupListener(e) {
+        this._keys[e.key] = e;
     }
 
 }

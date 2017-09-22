@@ -27,6 +27,18 @@ class Bouncer extends S2.Entity {
             this.vector.y = -this.velocity;
         }
         this.transform.position.add(this.vector);
+        if (S2.instance.input.keyDown("q")) {
+            console.log("keydown");
+        }
+        if (S2.instance.input.keyUp("q")) {
+            console.log("keyup");
+        }
+        if (S2.instance.input.keyPressed("q")) {
+            console.log("keypressed");
+        }
+        if (S2.instance.input.keyReleased("q")) {
+            console.log("keyreleased");
+        }
     }
 }
 
@@ -34,7 +46,7 @@ class Bouncer extends S2.Entity {
 const dvdLogo = new S2.Sprite("images/dvdlogogold.png");
 //const narwhal = new S2.Sprite("images/narwhal.png");
 //const narwhalInverted = new S2.Sprite("images/narwhal_inverted.png");
-s2.addEntity(new Bouncer(0, 0, dvdLogo, dvdLogo, 3));
+s2.scene.addEntity(new Bouncer(0, 0, dvdLogo, dvdLogo, 3));
 //s2.addEntity(new Bouncer(512, 512, narwhal, narwhalInverted, 6));
 
 s2.run();
