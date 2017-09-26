@@ -11,7 +11,7 @@ const S2 = {
 };
 
 S2.S2 = class {
-    constructor(canvasEl) {
+    constructor(canvasEl, dontRun) {
         if (S2._instance) {
             throw new Error("S2.S2 can only be initialized one time. If you want to change the canvas, use S2.instance.attachToCanvas(canvasEl) instead.");
         }
@@ -29,6 +29,10 @@ S2.S2 = class {
         this._input = null;
         this._scene = new S2.Entity(0, 0);
         this.attachToCanvas(canvasEl);
+
+        if (!dontRun) {
+            this.run();
+        }
     }
 
     get canvas() {
@@ -206,6 +210,25 @@ S2.Entity = class {
         }
         this._entities[layer].push(entity);
         return entity;
+    }
+
+    despawn(entity, layer) {
+        if (!(entity instanceof S2.Entity)) {
+            throw new Error("S2.Entity.despawn entity parameter must be an instance of S2.Entity");
+        }
+        if (layer === undefined) {
+            layer = 100;
+        } else if (layer < 0) {
+            layer = 0;
+        }
+        if (this._entities[layer] === undefined) {
+            return false;
+        }
+        if (!this._entities[layer].includes(entity)) {
+            return false;
+        }
+        this._entities[layer].splice(this._entities[layer].indexOf(entity), 1);
+        return true;
     }
 
     update() { } // Can be overloaded.
