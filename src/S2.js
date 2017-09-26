@@ -111,6 +111,13 @@ S2.S2 = class {
         this._animationFrame(0);
     }
 
+    requestFullscreen() {
+        (this._canvas.requestFullscreen && this._canvas.requestFullscreen()) ||
+            (this._canvas.webkitRequestFullscreen && this._canvas.webkitRequestFullscreen()) ||
+            (this._canvas.mozRequestFullScreen && this._canvas.mozRequestFullScreen()) ||
+            (this._canvas.msRequestFullscreen && this._canvas.msRequestFullscreen());
+    }
+
     _animationFrame(timestamp) {
         if (!this._running) {
             return;
@@ -142,6 +149,7 @@ S2.S2 = class {
 S2.Entity = class {
     constructor(x, y, renderer) {
         this._transform = new S2.Transform();
+        this._animate = new S2.Animate(this);
         this._transform.position.x = x || 0;
         this._transform.position.y = y || 0;
         this._renderer = renderer || null;
@@ -162,6 +170,17 @@ S2.Entity = class {
         this._transform = value;
     }
 
+    get animate() {
+        return this._animate;
+    }
+
+    set animate(value) {
+        if (!(value instanceof S2.Animate)) {
+            throw new Error("S2.Entity.animate value must be an instance of S2.Animate.");
+        }
+        this._animate = value;
+    }
+
     get renderer() {
         return this._renderer;
     }
@@ -173,9 +192,9 @@ S2.Entity = class {
         this._renderer = value;
     }
 
-    addEntity(entity, layer) {
+    spawn(entity, layer) {
         if (!(entity instanceof S2.Entity)) {
-            throw new Error("S2.Entity.addEntity entity parameter must be an instance of S2.Entity");
+            throw new Error("S2.Entity.spawn entity parameter must be an instance of S2.Entity");
         }
         if (layer === undefined) {
             layer = 100;
@@ -192,6 +211,7 @@ S2.Entity = class {
     update() { } // Can be overloaded.
 
     _animationFrame() {
+        this._animate._animationFrame();
         this._transform.begin();
         if (this._renderer) {
             this._renderer.draw();
@@ -207,7 +227,17 @@ S2.Entity = class {
 }
 
 S2.Renderer = class {
-    draw() { } // To be overloaded
+    get width() {
+        throw new Error("S2.Renderer.width getter not implemented.")
+    }
+
+    get height() {
+        throw new Error("S2.Renderer.height getter not implemented.")
+    }
+
+    draw() {
+        throw new Error("S2.Renderer.draw() method not implemented.")
+    }
 }
 
 S2.Transform = class {
@@ -248,13 +278,90 @@ S2.Transform = class {
         }
         this._scale = value;
     }
+}
 
+S2.Animate = class {
+    constructor(entity) {
+        this._entity = entity;
+        this._animators = [];
+    }
+
+    add(animator) {
+        if (!(animator instanceof S2.Animator)) {
+            throw new Error("S2.Animate.add animator parameter value must be an instance of S2.Animator.");
+        }
+        this._animators.push(animator);
+        return animator;
+    }
+
+    fall(threshold, velocity) {
+        const animator = new S2.Animator(this._entity, (entity, animator) => {
+            if (threshold >= entity.transform.position.y) {
+                entity.transform.position.y += velocity;
+            } else {
+                animator.cancel();
+            }
+        });
+        this._animators.push(animator);
+        return animator;
+    }
+
+    bounceBox(x, y, width, height, velocity) {
+        if (!(velocity instanceof S2.Vector)) {
+            throw new Error("S2.Animate.bounceBox velocity parameter value must be an instance of S2.Vector.");
+        }
+        let vector = velocity.copy();
+        const animator = new S2.Animator(this._entity, (entity, animation) => {
+            if (entity.transform.position.x < x) {
+                vector.x = velocity.x;
+            }
+            if (entity.transform.position.x + entity.renderer.width > width) {
+                vector.x = -velocity.x;
+            }
+            if (entity.transform.position.y < y) {
+                vector.y = velocity.y;
+            }
+            if (entity.transform.position.y + entity.renderer.height > height) {
+                vector.y = -velocity.y;
+            }
+            entity.transform.position.add(vector);
+        });
+        this._animators.push(animator);
+        return animator;
+    }
+
+    _animationFrame() {
+        this._animators.forEach(animator => animator._animationFrame());
+        this._animators = this._animators.filter(v => v._complete === false);
+    }
+}
+
+S2.Animator = class {
+    constructor(entity, fn) {
+        this._complete = false;
+        this._entity = entity
+        this._fn = fn;
+    }
+
+    _animationFrame() {
+        if (!this._complete) {
+            this._fn(this._entity, this);
+        }
+    }
+
+    cancel() {
+        this._complete = true;
+    }
 }
 
 S2.Vector = class {
     constructor(x, y) {
         this.x = x || 0;
         this.y = y || 0;
+    }
+
+    copy() {
+        return new S2.Vector(this.x, this.y);
     }
 
     add(vector) {
@@ -281,6 +388,17 @@ S2.SpriteRenderer = class extends S2.Renderer {
             throw new Error("S2.SpriteRenderer.sprite value must be an instance of S2.Sprite.");
         }
         this._sprite = value;
+    }
+
+    get width() {
+        if (!this._sprite) {
+            throw new Error("Sprite not defined");
+        }
+        return this._sprite.width;
+    }
+
+    get height() {
+        return this.sprite.height;
     }
 
     draw() {
