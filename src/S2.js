@@ -13,10 +13,10 @@ const S2 = {
 S2.S2 = class {
     constructor(canvasEl, dontRun) {
         if (S2._instance) {
-            throw new Error("S2.S2 can only be initialized one time. If you want to change the canvas, use S2.instance.attachToCanvas(canvasEl) instead.");
+            throw new Error("S2.S2 can only be instantied one time. If you want to change the canvas, use S2.instance.attachToCanvas(canvasEl) instead.");
         }
         if (!(canvasEl instanceof HTMLCanvasElement)) {
-            throw new Error("S2.S2.contructor canvasEl parameter must be an instance of HTMLCanvasElement.");
+            throw new Error("S2.S2.constructor canvasEl parameter must be an instance of HTMLCanvasElement.");
         }
         S2._instance = this;
         this._canvas = null;
@@ -91,6 +91,7 @@ S2.S2 = class {
         if (!(entity instanceof S2.Entity)) {
             throw new Error("S2.S2.scene value must be an instance of S2.Entity.");
         }
+        this._scene = value;
     }
 
     attachToCanvas(canvasEl) {
@@ -115,7 +116,7 @@ S2.S2 = class {
         this._animationFrame(0);
     }
 
-    requestFullscreen() {
+    requestFullScreen() {
         (this._canvas.requestFullscreen && this._canvas.requestFullscreen()) ||
             (this._canvas.webkitRequestFullscreen && this._canvas.webkitRequestFullscreen()) ||
             (this._canvas.mozRequestFullScreen && this._canvas.mozRequestFullScreen()) ||
@@ -138,7 +139,7 @@ S2.S2 = class {
             this._context.fillRect(0, 0, this._canvas.width, this._canvas.height);
             this._context.restore();
         }
-        this._scene.update();
+        this._scene._update();
         this._scene._animationFrame();
         this._input._animationFrame();
 
@@ -161,7 +162,10 @@ S2.Entity = class {
             throw new Error("S2.Entity.contructor renderer parameter must be an instance of S2.Renderer class.");
         }
         this._entities = [];
+        this._behaviors = [];
     }
+
+    static get DefaultLayer() { return 100; }
 
     get transform() {
         return this._transform;
@@ -201,7 +205,7 @@ S2.Entity = class {
             throw new Error("S2.Entity.spawn entity parameter must be an instance of S2.Entity");
         }
         if (layer === undefined) {
-            layer = 100;
+            layer = S2.Entity.DefaultLayer;
         } else if (layer < 0) {
             layer = 0;
         }
@@ -217,7 +221,7 @@ S2.Entity = class {
             throw new Error("S2.Entity.despawn entity parameter must be an instance of S2.Entity");
         }
         if (layer === undefined) {
-            layer = 100;
+            layer = S2.Entity.DefaultLayer;
         } else if (layer < 0) {
             layer = 0;
         }
@@ -231,7 +235,23 @@ S2.Entity = class {
         return true;
     }
 
-    update() { } // Can be overloaded.
+    attachBehavior(behavior) {
+        if (!(behavior instanceof S2.Behavior)) {
+            throw new Error("S2.Entity.attachBehavior behavior parameter must be an instance of S2.Behavior");
+        }
+        if (!this._behaviors.includes(behavior)) {
+            this._behaviors.push(behavior);
+        }
+    }
+
+    detachBehavior(behavior) {
+        let i;
+        if ((i = this._behaviors.indexOf(behavior)) !== -1) {
+            this._behaviors.splice(i, 1);
+        }
+    }
+
+    update(entity) { }
 
     _animationFrame() {
         this._animate._animationFrame();
@@ -241,11 +261,16 @@ S2.Entity = class {
         }
         this._entities.forEach(layer => {
             layer.forEach(entity => {
-                entity.update();
+                entity._update();
                 entity._animationFrame();
             });
         });
         this._transform.end();
+    }
+
+    _update() {
+        this._behaviors.forEach(v => v.update(this));
+        this.update(this);
     }
 }
 
@@ -379,8 +404,40 @@ S2.Animator = class {
 
 S2.Vector = class {
     constructor(x, y) {
-        this.x = x || 0;
-        this.y = y || 0;
+        this._x = x || 0;
+        this._y = y || 0;
+    }
+
+    static get Up() {
+        return new S2.Vector(0, -1);
+    }
+
+    static get Right() {
+        return new S2.Vector(1, 0);
+    }
+
+    static get Down() {
+        return new S2.Vector(0, 1);
+    }
+
+    static get Left() {
+        return new S2.Vector(-1, 0);
+    }
+
+    get x() {
+        return this._x;
+    }
+
+    set x(value) {
+        this._x = value;
+    }
+
+    get y() {
+        return this._y;
+    }
+
+    set y(value) {
+        this._y = value;
     }
 
     copy() {
@@ -394,12 +451,15 @@ S2.Vector = class {
 }
 
 S2.SpriteRenderer = class extends S2.Renderer {
-    constructor(sprite) {
+    constructor(sprite, innerPosition, innerWidth, innerHeight) {
         super();
         if (!(sprite instanceof S2.Sprite)) {
             throw new Error("S2.SpriteRenderer.constructor sprite paramenter must be an instance of S2.Sprite.");
         }
         this._sprite = sprite;
+        this._innerPosition = innerPosition
+        this._innerWidth = innerWidth;
+        this._innerHeight = innerHeight;
     }
 
     get sprite() {
@@ -413,20 +473,59 @@ S2.SpriteRenderer = class extends S2.Renderer {
         this._sprite = value;
     }
 
-    get width() {
-        if (!this._sprite) {
-            throw new Error("Sprite not defined");
+    get innerPosition() {
+        return this._innerPosition !== undefined ? this._innerPosition : new Vector(0, 0);
+    }
+
+    set innerPosition(value) {
+        if (!(value instanceof S2.Vector)) {
+            throw new Error("S2.SpriteRenderer.innerPosition value must be an instance of S2.Vector.");
         }
+        this._innerPosition = value;
+    }
+
+    get innerWidth() {
+        return this._innerWidth === undefined ? this._sprite.width : this._innerWidth;
+    }
+
+    set innerWidth(value) {
+        this._innerWidth = value;
+    }
+
+    get innerHeight() {
+        return innerHeight === undefined ? this._sprite.height : this._innerHeight;
+    }
+
+    set innerHeight(value) {
+        this._innerHeight = value;
+    }
+
+    get width() {
         return this._sprite.width;
     }
 
     get height() {
-        return this.sprite.height;
+        return this._sprite.height;
     }
 
     draw() {
         if (this._sprite.loaded) {
-            S2.instance.context.drawImage(this._sprite.image, 0, 0);
+            if (this._innerPosition !== undefined) {
+                const width = this._innerWidth !== undefined ? this._innerWidth : this._sprite.width;
+                const height = this._innerHeight !== undefined ? this._innerHeight : this._sprite.height;
+                S2.instance.context.drawImage(
+                    this._sprite.image,
+                    this._innerPosition.x,
+                    this._innerPosition.y,
+                    width,
+                    height,
+                    0,
+                    0,
+                    width,
+                    height);
+            } else {
+                S2.instance.context.drawImage(this._sprite.image, 0, 0);
+            }
         }
     }
 }
@@ -466,7 +565,6 @@ S2.Sprite = class {
     get loaded() {
         return this._isLoaded;
     }
-
 }
 
 S2.Input = class {
@@ -477,39 +575,33 @@ S2.Input = class {
         canvas.focus();
         canvas.addEventListener("keydown", this._keydownListener.bind(this), true);
         canvas.addEventListener("keyup", this._keyupListener.bind(this), true);
-
     }
 
     _animationFrame() {
         this._keys = {};
     }
 
-    keyDown(key, altKey, ctrlKey, shiftKey, metaKey) {
+    keyDown(key) {
         const e = this._keys[key];
-        return e !== undefined && e.type === "keydown" && e.altKey === !!altKey
-            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey;
+        return e !== undefined && e.type === "keydown" ? e : false;
     }
 
-    keyUp(key, altKey, ctrlKey, shiftKey, metaKey) {
+    keyUp(key) {
         const e = this._keys[key];
-        return e === undefined || (e.type === "keyup" && e.altKey === !!altKey
-            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey);
+        return e === undefined || e.type === "keyup" ? e : false;
     }
 
-    keyPressed(key, altKey, ctrlKey, shiftKey, metaKey) {
+    keyPressed(key) {
         const e = this._keys[key];
-        return e !== undefined && e.type === "keydown" && e.repeat === false && e.altKey === !!altKey
-            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey;
+        return e !== undefined && e.type === "keydown" && e.repeat === false ? e : false;
     }
 
-    keyReleased(key, altKey, ctrlKey, shiftKey, metaKey) {
+    keyReleased(key) {
         const e = this._keys[key];
-        return e !== undefined && e.type === "keyup" && e.altKey === !!altKey
-            && e.ctrlKey === !!ctrlKey && e.shiftKey === !!shiftKey && e.metaKey === !!metaKey;
+        return e !== undefined && e.type === "keyup" ? e : false;
     }
 
     _keydownListener(e) {
-        //console.log(e);
         this._keys[e.key] = e;
     }
 
@@ -517,4 +609,8 @@ S2.Input = class {
         this._keys[e.key] = e;
     }
 
+}
+
+S2.Behavior = class {
+    update(entity) { }
 }

@@ -11,5 +11,3 @@ class DvdLogo extends S2.Entity {
 }
 
 s2.scene.spawn(new DvdLogo(10, 10));
-
-//setInterval(() => s2.scene.spawn(new DvdLogo(10, 10)), 1000);
