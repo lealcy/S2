@@ -25,7 +25,7 @@ S2.S2 = class {
         this._frameCount = 0;
         this._timestamp = 0;
         this._clearEveryFrame = true;
-        this._backgroundColor = null;
+        this._backgroundColor = "black";
         this._input = null;
         this._scene = new S2.Entity(0, 0);
         this.attachToCanvas(canvasEl);
@@ -104,6 +104,7 @@ S2.S2 = class {
     }
 
     _windowResizeListener(e) {
+        this._scene._canvasResized();
         this._canvas.width = window.innerWidth;
         this._canvas.height = window.innerHeight;
     }
@@ -127,7 +128,7 @@ S2.S2 = class {
         if (!this._running) {
             return;
         }
-        window.requestAnimationFrame(this._animationFrame.bind(this));
+        requestAnimationFrame(this._animationFrame.bind(this));
         this._timestamp = timestamp;
         this._frameCount++;
 
@@ -161,8 +162,8 @@ S2.Entity = class {
         if (this._renderer && !(this._renderer instanceof S2.Renderer)) {
             throw new Error("S2.Entity.contructor renderer parameter must be an instance of S2.Renderer class.");
         }
-        this._entities = [];
-        this._behaviors = [];
+        this._layers = [];
+        this._behaviors = new Set;
     }
 
     static get DefaultLayer() { return 100; }
@@ -209,10 +210,10 @@ S2.Entity = class {
         } else if (layer < 0) {
             layer = 0;
         }
-        if (this._entities[layer] === undefined) {
-            this._entities[layer] = [];
+        if (this._layers[layer] === undefined) {
+            this._layers[layer] = new Set;
         }
-        this._entities[layer].push(entity);
+        this._layers[layer].add(entity);
         return entity;
     }
 
@@ -225,33 +226,28 @@ S2.Entity = class {
         } else if (layer < 0) {
             layer = 0;
         }
-        if (this._entities[layer] === undefined) {
+        if (this._layers[layer] === undefined || !this._layers[layer].has(entity)) {
             return false;
         }
-        if (!this._entities[layer].includes(entity)) {
-            return false;
-        }
-        this._entities[layer].splice(this._entities[layer].indexOf(entity), 1);
+        this._layers[layer].delete(entity);
         return true;
     }
 
-    attachBehavior(behavior) {
+    addBehavior(behavior) {
         if (!(behavior instanceof S2.Behavior)) {
-            throw new Error("S2.Entity.attachBehavior behavior parameter must be an instance of S2.Behavior");
+            throw new Error("S2.Entity.addBehavior behavior parameter must be an instance of S2.Behavior");
         }
-        if (!this._behaviors.includes(behavior)) {
-            this._behaviors.push(behavior);
-        }
+        this._behaviors.add(behavior);
+        return true;
     }
 
-    detachBehavior(behavior) {
-        let i;
-        if ((i = this._behaviors.indexOf(behavior)) !== -1) {
-            this._behaviors.splice(i, 1);
-        }
+    deleteBehavior(behavior) {
+        return this._behaviors.delete(behavior);
     }
 
     update(entity) { }
+
+    canvasResized() { }
 
     _animationFrame() {
         this._animate._animationFrame();
@@ -259,7 +255,7 @@ S2.Entity = class {
         if (this._renderer) {
             this._renderer.draw();
         }
-        this._entities.forEach(layer => {
+        this._layers.forEach(layer => {
             layer.forEach(entity => {
                 entity._update();
                 entity._animationFrame();
@@ -271,6 +267,16 @@ S2.Entity = class {
     _update() {
         this._behaviors.forEach(v => v.update(this));
         this.update(this);
+    }
+
+    _canvasResized() {
+        this._layers.forEach(layer => {
+            layer.forEach(entity => {
+                entity._canvasResized(this);
+            });
+        });
+        this._behaviors.forEach(v => v.canvasResized(this));
+        this.canvasResized(this);
     }
 }
 
@@ -331,15 +337,19 @@ S2.Transform = class {
 S2.Animate = class {
     constructor(entity) {
         this._entity = entity;
-        this._animators = [];
+        this._animators = new Set;
     }
 
     add(animator) {
         if (!(animator instanceof S2.Animator)) {
             throw new Error("S2.Animate.add animator parameter value must be an instance of S2.Animator.");
         }
-        this._animators.push(animator);
+        this._animators.add(animator);
         return animator;
+    }
+
+    delete(animator) {
+        this._animators.delete(animator);
     }
 
     fall(threshold, velocity) {
@@ -350,7 +360,21 @@ S2.Animate = class {
                 animator.cancel();
             }
         });
-        this._animators.push(animator);
+        this._animators.add(animator);
+        return animator;
+    }
+
+    slide(direction, distance, steps) {
+        const stepSize = distance / steps;
+        const animator = new S2.Animator(this._entity, (entity, animator) => {
+            if (steps) {
+                entity.transform.position.add(S2.Vector.Scale(direction, stepSize));
+                steps--;
+            } else {
+                animator.cancel();
+            }
+        });
+        this._animators.add(animator);
         return animator;
     }
 
@@ -374,13 +398,17 @@ S2.Animate = class {
             }
             entity.transform.position.add(vector);
         });
-        this._animators.push(animator);
+        this._animators.add(animator);
         return animator;
     }
 
     _animationFrame() {
         this._animators.forEach(animator => animator._animationFrame());
-        this._animators = this._animators.filter(v => v._complete === false);
+        this._animators.forEach(v => {
+            if (v._complete) {
+                this._animators.delete(v);
+            }
+        });
     }
 }
 
@@ -422,6 +450,13 @@ S2.Vector = class {
 
     static get Left() {
         return new S2.Vector(-1, 0);
+    }
+
+    static Scale(vector, magnitude) {
+        if (magnitude instanceof S2.Vector) {
+            return new S2.Vector(vector.x * magnitude.x, vector.y * magnitude.y);
+        }
+        return new S2.Vector(vector.x * magnitude, vector.y * magnitude);
     }
 
     get x() {
@@ -569,7 +604,7 @@ S2.Sprite = class {
 
 S2.Input = class {
     constructor() {
-        this._keys = {};
+        this._keys = new Map;
         let canvas = S2.instance.canvas;
         canvas.tabIndex = 0;
         canvas.focus();
@@ -578,39 +613,48 @@ S2.Input = class {
     }
 
     _animationFrame() {
-        this._keys = {};
+        //this._keys = new Map;
     }
 
     keyDown(key) {
-        const e = this._keys[key];
-        return e !== undefined && e.type === "keydown" ? e : false;
+        if (!this._keys.has(key)) {
+            return false;
+        }
+        const e = this._keys.get(key);
+        return e.type === "keydown" ? e : false;
     }
 
     keyUp(key) {
-        const e = this._keys[key];
-        return e === undefined || e.type === "keyup" ? e : false;
+        if (!this._keys.has(key)) {
+            return true;
+        }
+        const e = this._keys.get(key);
+        return e.type === "keyup" ? e : false;
     }
 
     keyPressed(key) {
-        const e = this._keys[key];
-        return e !== undefined && e.type === "keydown" && e.repeat === false ? e : false;
+        if (!this._keys.has(key)) {
+            return false;
+        }
+        const e = this._keys.get(key);
+        return e.type === "keydown" && e.repeat === false ? e : false;
     }
 
     keyReleased(key) {
-        const e = this._keys[key];
-        return e !== undefined && e.type === "keyup" ? e : false;
+        return this.keyUp(key);
     }
 
     _keydownListener(e) {
-        this._keys[e.key] = e;
+        this._keys.set(e.key, e);
     }
 
     _keyupListener(e) {
-        this._keys[e.key] = e;
+        this._keys.set(e.key, e);
     }
 
 }
 
 S2.Behavior = class {
     update(entity) { }
+    canvasResized(entity) { }
 }
