@@ -153,12 +153,12 @@ S2.S2 = class {
 }
 
 S2.Entity = class {
-    constructor(x, y, renderer) {
+    constructor(x = 0, y = 0, renderer = null) {
         this._transform = new S2.Transform();
         this._animate = new S2.Animate(this);
-        this._transform.position.x = x || 0;
-        this._transform.position.y = y || 0;
-        this._renderer = renderer || null;
+        this._transform.position.x = x;
+        this._transform.position.y = y;
+        this._renderer = renderer;
         if (this._renderer && !(this._renderer instanceof S2.Renderer)) {
             throw new Error("S2.Entity.contructor renderer parameter must be an instance of S2.Renderer class.");
         }
@@ -413,8 +413,9 @@ S2.Animate = class {
 }
 
 S2.Animator = class {
-    constructor(entity, fn) {
+    constructor(entity, fn, completeCallback = () => { }) {
         this._complete = false;
+        this._completeCallback = completeCallback;
         this._entity = entity
         this._fn = fn;
     }
@@ -427,13 +428,14 @@ S2.Animator = class {
 
     cancel() {
         this._complete = true;
+        this._completeCallback();
     }
 }
 
 S2.Vector = class {
-    constructor(x, y) {
-        this._x = x || 0;
-        this._y = y || 0;
+    constructor(x = 0, y = 0) {
+        this._x = x;
+        this._y = y;
     }
 
     static get Up() {

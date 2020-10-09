@@ -34,4 +34,4 @@ class DvdLogo extends S2.Entity {
 }
 
 s2.scene.spawn(new DvdLogo(10, 10));
-//s2.backgroundColor = "blue";
+
