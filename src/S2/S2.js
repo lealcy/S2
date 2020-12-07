@@ -5,7 +5,8 @@ class S2 {
     static #context;
     static #running = false;
     static #frameCount = 0;
-    static #timestamp = 0;
+    static #timetamp = 0;
+    static #deltaTime = 1;
     static #clearEveryFrame = true;
     static #backgroundColor = "black";
     static #scene;
@@ -30,8 +31,12 @@ class S2 {
         return S2.#running;
     }
 
-    static get timestamp() {
-        return S2.#timestamp;
+    static get timetamp() {
+        return S2.#timetamp;
+    }
+
+    static get deltaTime() {
+        return S2.#deltaTime;
     }
 
     static get frameCount() {
@@ -111,12 +116,13 @@ class S2 {
             (S2.#canvas.msRequestFullscreen && S2.#canvas.msRequestFullscreen());
     }
 
-    static #internalAnimationFrame(timestamp) {
+    static #internalAnimationFrame(timetamp) {
         if (!S2.#running) {
             return;
         }
         requestAnimationFrame(S2.#internalAnimationFrame);
-        S2.#timestamp = timestamp;
+        S2.#deltaTime = (timestamp - S2.#timestamp) / (1000 / 60);
+        S2.#timetamp = timetamp;
         S2.#frameCount++;
 
         if (!S2.#backgroundColor) {
