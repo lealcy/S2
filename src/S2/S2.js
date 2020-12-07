@@ -70,13 +70,13 @@ class S2 {
         S2.#scene = value;
     }
 
-    static attachToCanvas(canvasEl, shouldRun = true) {
+    static attachToCanvas(canvasEl, shouldRun = true, contextOptions = { alpha: false }) {
         if (!(canvasEl instanceof HTMLCanvasElement)) {
             throw new Error("S2.attachToCanvas canvasEl parameter must be an instance of HTMLCanvasElement.");
         }
         S2.detatchFromCanvas();
         S2.#canvas = canvasEl;
-        S2.#context = canvasEl.getContext("2d", { alpha: false });
+        S2.#context = canvasEl.getContext("2d", contextOptions);
         if (!S2.#scene) {
             S2.#scene = new S2.Entity(0, 0);
         }
@@ -93,6 +93,8 @@ class S2 {
         window.removeEventListener("resize", S2.#windowResizeListener, false);
         if (S2.#canvas) {
             S2.Input.detatchFromCanvas();
+            S2.stop();
+            S2.#canvas = null;
         }
     }
 
@@ -125,13 +127,15 @@ class S2 {
         S2.#timestamp = timestamp;
         S2.#frameCount++;
 
-        if (!S2.#backgroundColor) {
-            S2.#context.clearRect(0, 0, S2.#canvas.width, S2.#canvas.height);
-        } else {
-            S2.#context.save();
-            S2.#context.fillStyle = S2.#backgroundColor;
-            S2.#context.fillRect(0, 0, S2.#canvas.width, S2.#canvas.height);
-            S2.#context.restore();
+        if (S2.clearEveryFrame) {
+            if (!S2.#backgroundColor) {
+                S2.#context.clearRect(0, 0, S2.#canvas.width, S2.#canvas.height);
+            } else {
+                S2.#context.save();
+                S2.#context.fillStyle = S2.#backgroundColor;
+                S2.#context.fillRect(0, 0, S2.#canvas.width, S2.#canvas.height);
+                S2.#context.restore();
+            }
         }
         S2.#scene.internalUpdate();
         S2.#scene.internalAnimationFrame();
@@ -146,55 +150,67 @@ class S2 {
     }
 
     static Input = class {
-        static #keys = new Map;
 
         static attachToCanvas() {
-            S2.canvas.tabIndex = 0;
-            S2.canvas.focus();
-            S2.canvas.addEventListener("keydown", S2.Input.#keydownListener, true);
-            S2.canvas.addEventListener("keyup", S2.Input.#keyupListener, true);
+            S2.Input.Key.attachToCanvas();
         }
 
         static detatchFromCanvas() {
-            S2.canvas.removeEventListener("keydown", S2.Input.#keydownListener, true);
-            S2.canvas.removeEventListener("keyup", S2.Input.#keyupListener, true);
+            S2.Input.Key.detatchFromCanvas();
         }
 
-        static keyDown(key) {
-            if (!S2.Input.#keys.has(key)) {
-                return false;
+        static Key = class {
+            static #keys = new Map;
+
+            static attachToCanvas() {
+                S2.canvas.tabIndex = 0;
+                S2.canvas.focus();
+                S2.canvas.addEventListener("keydown", S2.Input.Key.#keydownListener, true);
+                S2.canvas.addEventListener("keyup", S2.Input.Key.#keyupListener, true);
             }
-            const e = S2.Input.#keys.get(key);
-            return e.type === "keydown" ? e : false;
-        }
 
-        static keyUp(key) {
-            if (!S2.Input.#keys.has(key)) {
-                return true;
+            static detatchFromCanvas() {
+                S2.canvas.removeEventListener("keydown", S2.Input.Key.#keydownListener, true);
+                S2.canvas.removeEventListener("keyup", S2.Input.Key.#keyupListener, true);
             }
-            const e = S2.Input.#keys.get(key);
-            return e.type === "keyup" ? e : false;
-        }
 
-        static keyPressed(key) {
-            if (!S2.Input.#keys.has(key)) {
-                return false;
+            static down(key) {
+                if (!S2.Input.Key.#keys.has(key)) {
+                    return false;
+                }
+                const e = S2.Input.Key.#keys.get(key);
+                return e.type === "keydown" ? e : false;
             }
-            const e = S2.Input.#keys.get(key);
-            return e.type === "keydown" && e.repeat === false ? e : false;
+
+            static up(key) {
+                if (!S2.Input.Key.#keys.has(key)) {
+                    return true;
+                }
+                const e = S2.Input.Key.#keys.get(key);
+                return e.type === "keyup" ? e : false;
+            }
+
+            static pressed(key) {
+                if (!S2.Input.Key.#keys.has(key)) {
+                    return false;
+                }
+                const e = S2.Input.Key.#keys.get(key);
+                return e.type === "keydown" && e.repeat === false ? e : false;
+            }
+
+            static released(key) {
+                return S2.Input.Key.keyUp(key);
+            }
+
+            static #keydownListener(e) {
+                S2.Input.Key.#keys.set(e.key, e);
+            }
+
+            static #keyupListener(e) {
+                S2.Input.Key.#keys.set(e.key, e);
+            }
         }
 
-        static keyReleased(key) {
-            return S2.Input.keyUp(key);
-        }
-
-        static #keydownListener(e) {
-            S2.Input.#keys.set(e.key, e);
-        }
-
-        static #keyupListener(e) {
-            S2.Input.#keys.set(e.key, e);
-        }
 
     }
 
