@@ -10,16 +10,16 @@ class DvdLogo extends S2.Entity {
 
     // Control the logo with the arrow keys
     update() {
-        if (S2.Input.keyDown("ArrowUp")) {
+        if (S2.Input.Key.down("ArrowUp")) {
             this.animate.slide(S2.Vector.Up, 10, 30);
         }
-        if (S2.Input.keyDown("ArrowRight")) {
+        if (S2.Input.Key.down("ArrowRight")) {
             this.animate.slide(S2.Vector.Right, 10, 30);
         }
-        if (S2.Input.keyDown("ArrowDown")) {
+        if (S2.Input.Key.down("ArrowDown")) {
             this.animate.slide(S2.Vector.Down, 10, 30);
         }
-        if (S2.Input.keyDown("ArrowLeft")) {
+        if (S2.Input.Key.down("ArrowLeft")) {
             this.animate.slide(S2.Vector.Left, 10, 30);
         }
     }
