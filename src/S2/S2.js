@@ -5,7 +5,7 @@ class S2 {
     static #context;
     static #running = false;
     static #frameCount = 0;
-    static #timetamp = 0;
+    static #timestamp = 0;
     static #deltaTime = 1;
     static #clearEveryFrame = true;
     static #backgroundColor = "black";
@@ -31,8 +31,8 @@ class S2 {
         return S2.#running;
     }
 
-    static get timetamp() {
-        return S2.#timetamp;
+    static get timestamp() {
+        return S2.#timestamp;
     }
 
     static get deltaTime() {
@@ -116,13 +116,13 @@ class S2 {
             (S2.#canvas.msRequestFullscreen && S2.#canvas.msRequestFullscreen());
     }
 
-    static #internalAnimationFrame(timetamp) {
+    static #internalAnimationFrame(timestamp) {
         if (!S2.#running) {
             return;
         }
         requestAnimationFrame(S2.#internalAnimationFrame);
         S2.#deltaTime = (timestamp - S2.#timestamp) / (1000 / 60);
-        S2.#timetamp = timetamp;
+        S2.#timestamp = timestamp;
         S2.#frameCount++;
 
         if (!S2.#backgroundColor) {
@@ -444,7 +444,7 @@ class S2 {
         fall(threshold, velocity) {
             const animator = new S2.Animator(this.#entity, (entity, animator) => {
                 if (threshold >= entity.transform.position.y) {
-                    entity.transform.position.y += velocity;
+                    entity.transform.position.y += velocity * S2.deltaTime;
                 } else {
                     animator.cancel();
                 }
@@ -457,7 +457,7 @@ class S2 {
             const stepSize = distance / steps;
             const animator = new S2.Animator(this.#entity, (entity, animator) => {
                 if (steps) {
-                    entity.transform.position.add(S2.Vector.scale(direction, stepSize));
+                    entity.transform.position.add(S2.Vector.scale(direction, stepSize * S2.deltaTime));
                     steps--;
                 } else {
                     animator.cancel();
@@ -474,16 +474,16 @@ class S2 {
             let vector = velocity.copy();
             const animator = new S2.Animator(this.#entity, (entity, animation) => {
                 if (entity.transform.position.x < x) {
-                    vector.x = velocity.x;
+                    vector.x = velocity.x * S2.deltaTime;
                 }
                 if (entity.transform.position.x + entity.renderer.width > width) {
-                    vector.x = -velocity.x;
+                    vector.x = -velocity.x * S2.deltaTime;
                 }
                 if (entity.transform.position.y < y) {
-                    vector.y = velocity.y;
+                    vector.y = velocity.y * S2.deltaTime;
                 }
                 if (entity.transform.position.y + entity.renderer.height > height) {
-                    vector.y = -velocity.y;
+                    vector.y = -velocity.y * S2.deltaTime;
                 }
                 entity.transform.position.add(vector);
             });
