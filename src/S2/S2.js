@@ -102,6 +102,9 @@ class S2 {
         if (S2.#running) {
             return;
         }
+        if (!(S2.#canvas instanceof HTMLCanvasElement)) {
+            throw new Error("S2.start can only be called after S2.attachToCanvas(HTMLCanvasElement).");
+        }
         S2.#running = true;
         S2.#internalAnimationFrame(0);
     }
@@ -110,12 +113,8 @@ class S2 {
         S2.#running = false;
     }
 
-
     static requestFullScreen() {
-        (S2.#canvas.requestFullscreen && S2.#canvas.requestFullscreen()) ||
-            (S2.#canvas.webkitRequestFullscreen && S2.#canvas.webkitRequestFullscreen()) ||
-            (S2.#canvas.mozRequestFullScreen && S2.#canvas.mozRequestFullScreen()) ||
-            (S2.#canvas.msRequestFullscreen && S2.#canvas.msRequestFullscreen());
+        S2.#canvas.requestFullscreen();
     }
 
     static #internalAnimationFrame(timestamp) {
@@ -139,6 +138,7 @@ class S2 {
         }
         S2.#scene.internalUpdate();
         S2.#scene.internalAnimationFrame();
+        S2.Input.Key.lateUpdate();
     }
 
     static #windowResizeListener(e) {
@@ -161,6 +161,13 @@ class S2 {
 
         static Key = class {
             static #keys = new Map;
+
+            static lateUpdate() {
+                S2.Input.Key.#keys.forEach(key => {
+                    key.pressed = false;
+                    key.released = false;
+                });
+            }
 
             static attachToCanvas() {
                 S2.canvas.tabIndex = 0;
@@ -191,22 +198,32 @@ class S2 {
             }
 
             static pressed(key) {
-                if (!S2.Input.Key.#keys.has(key)) {
-                    return false;
+                if (S2.Input.Key.#keys.has(key)) {
+                    const e = S2.Input.Key.#keys.get(key);
+                    if (e.pressed && !e.repeat && e.type === "keydown") {
+                        return e;
+                    }
                 }
-                const e = S2.Input.Key.#keys.get(key);
-                return e.type === "keydown" && e.repeat === false ? e : false;
+                return false;
             }
 
             static released(key) {
-                return S2.Input.Key.keyUp(key);
+                if (S2.Input.Key.#keys.has(key)) {
+                    const e = S2.Input.Key.#keys.get(key);
+                    if (e.released && e.type === "keyup") {
+                        return e;
+                    }
+                }
+                return false;
             }
 
             static #keydownListener(e) {
+                e.pressed = true;
                 S2.Input.Key.#keys.set(e.key, e);
             }
 
             static #keyupListener(e) {
+                e.released = true;
                 S2.Input.Key.#keys.set(e.key, e);
             }
         }
@@ -679,9 +696,6 @@ class S2 {
             this.spriteRenderer = spriteRenderer;
         }
     }
-
-
-
 }
 
 class Behavior {

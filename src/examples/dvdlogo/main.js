@@ -22,6 +22,14 @@ class DvdLogo extends S2.Entity {
         if (S2.Input.Key.down("ArrowLeft")) {
             this.animate.slide(S2.Vector.Left, 10, 30);
         }
+        if (S2.Input.Key.pressed("f")) {
+            S2.requestFullScreen();
+        }
+        let e = S2.Input.Key.released("g");
+        if (e) {
+            console.log(e);
+        }
+
     }
 
     // Adjuste the bouncing in case the browser window is resized
